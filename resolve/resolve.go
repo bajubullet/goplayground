@@ -8,7 +8,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"sort"
+	_ "sort"
 	"strings"
 	"time"
 )
@@ -143,6 +143,7 @@ type domainAnswer struct {
 	id     uint16
 	domain string
 	ips    []net.IP
+	cnames []string
 }
 
 func do_map_guard(domains <-chan string,
@@ -210,15 +211,17 @@ func do_map_guard(domains <-chan string,
 						dr.id, dr.domain)
 				}
 
-				s := make([]string, 0, 16)
-				for _, ip := range da.ips {
-					s = append(s, ip.String())
-				}
-				sort.Sort(sort.StringSlice(s))
+				// s := make([]string, 0, 16)
+				// for _, ip := range da.ips {
+				// 	s = append(s, ip.String())
+				// }
+				// sort.Sort(sort.StringSlice(s))
+				cnames := strings.Join(da.cnames, ",")
 
 				// without trailing dot
 				domain := dr.domain[:len(dr.domain)-1]
-				fmt.Printf("%s, %s\n", domain, strings.Join(s, " "))
+				// fmt.Printf("%s, %s\n", domain, strings.Join(s, " "))
+				fmt.Printf("%s, %s, \"%s\"\n", domain, da.ips[0], cnames)
 
 				sumTries += dr.resend
 				domainCount += 1
@@ -281,7 +284,7 @@ func do_receive(c net.Conn, resolved chan<- *domainAnswer) {
 		} else {
 			t = dnsTypeAAAA
 		}
-		domain, id, ips := unpackDns(buf[:n], t)
-		resolved <- &domainAnswer{id, domain, ips}
+		domain, id, ips, cnames := unpackDns(buf[:n], t)
+		resolved <- &domainAnswer{id, domain, ips, cnames}
 	}
 }

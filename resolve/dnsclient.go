@@ -64,18 +64,18 @@ func reverseaddr(addr string) (arpa string, err error) {
 
 // Find answer for name in dns message.
 // On return, if err == nil, addrs != nil.
-func answer(name, server string, dns *dnsMsg, qtype uint16) (cname string, addrs []dnsRR, err error) {
+func answer(name, server string, dns *dnsMsg, qtype uint16) (cnames []string, addrs []dnsRR, err error) {
 	addrs = make([]dnsRR, 0, len(dns.answer))
 
 	if dns.rcode == dnsRcodeNameError && dns.recursion_available {
-		return "", nil, &DNSError{Err: noSuchHost, Name: name}
+		return cnames, nil, &DNSError{Err: noSuchHost, Name: name}
 	}
 	if dns.rcode != dnsRcodeSuccess {
 		// None of the error codes make sense
 		// for the query we sent.  If we didn't get
 		// a name error and we didn't get success,
 		// the server is behaving incorrectly.
-		return "", nil, &DNSError{Err: "server misbehaving", Name: name, Server: server}
+		return cnames, nil, &DNSError{Err: "server misbehaving", Name: name, Server: server}
 	}
 
 	// Look for the name.
@@ -100,19 +100,20 @@ Cname:
 				case qtype:
 					addrs = append(addrs, rr)
 				case dnsTypeCNAME:
-					// redirect to cname
+					// redirect to cnames
 					name = rr.(*dnsRR_CNAME).Cname
+					cnames = append(cnames, name)
 					continue Cname
 				}
 			}
 		}
 		if len(addrs) == 0 {
-			return "", nil, &DNSError{Err: noSuchHost, Name: name, Server: server}
+			return cnames, nil, &DNSError{Err: noSuchHost, Name: name, Server: server}
 		}
-		return name, addrs, nil
+		return cnames, addrs, nil
 	}
 
-	return "", nil, &DNSError{Err: "too many redirects", Name: name, Server: server}
+	return cnames, nil, &DNSError{Err: "too many redirects", Name: name, Server: server}
 }
 
 func isDomainName(s string) bool {
